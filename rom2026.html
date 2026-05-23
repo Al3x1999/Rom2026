@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>🏛️ Rom 2026 – Reiseplanung</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    /* ===== BRACKE.EU THEME COLORS ===== */
+    :root {
+      --navy:      #07294D;
+      --teal:      #005353;
+      --teal-mid:  #279090;
+      --teal-lt:   #00868B;
+      --teal-pale: #99BABA;
+      --orange:    #ECA34E;
+      --orange-dk: #E78C22;
+      --red:       #9D4954;
+      --bg:        #EDF0F2;
+      --bg-card:   #FFFFFF;
+      --border:    #D0D8E0;
+      --txt:       #07294D;
+      --txt-muted: #5A6A7A;
+      --radius:    10px;
+      --shadow:    0 2px 12px rgba(7,41,77,.10);
+      --shadow-lg: 0 8px 32px rgba(7,41,77,.16);
+      /* Björn & Alex group color */
+      --ba-blue:   #4FAACC;
+      --ba-blue-dk:#3A8FAE;
+      --ba-blue-lt:#D4EEF7;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html{scroll-behavior:smooth}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
+    a{color:inherit;text-decoration:none}
+
+    /* ===== PASSWORD SCREEN ===== */
+    #pw-screen{
+      min-height:100vh;display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg,var(--navy) 0%,var(--teal) 100%);
+      padding:1rem;
+    }
+    .pw-card{
+      background:var(--bg-card);border-radius:20px;padding:2.5rem 2rem;
+      width:100%;max-width:360px;box-shadow:var(--shadow-lg);text-align:center;
+    }
+    .pw-logo{font-size:3rem;margin-bottom:.75rem}
+    .pw-title{font-size:1.5rem;font-weight:800;color:var(--navy);margin-bottom:.25rem}
+    .pw-sub{font-size:.85rem;color:var(--txt-muted);margin-bottom:1.5rem;display:flex;flex-direction:column;gap:.2rem}
+    .pw-input{
+      width:100%;padding:.85rem 1rem;border:2px solid var(--border);
+      border-radius:var(--radius);font-size:1rem;outline:none;
+      transition:border-color .2s;margin-bottom:.75rem;
+    }
+    .pw-input:focus{border-color:var(--teal)}
+    .pw-err{color:var(--red);font-size:.8rem;min-height:1.2em;margin-bottom:.5rem}
+    .pw-btn{
+      width:100%;padding:.9rem;
+      background:linear-gradient(90deg,var(--navy),var(--teal));
+      color:#fff;border:none;border-radius:var(--radius);
+      font-size:.95rem;font-weight:700;cursor:pointer;transition:opacity .2s;
+    }
+    .pw-btn:hover{opacity:.9}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+    .shake{animation:shake .4s}
+
+    /* ===== APP SHELL ===== */
+    #app{display:none;min-height:100vh;flex-direction:column}
+
+    /* ===== HEADER ===== */
+    .hdr{
+      background:linear-gradient(90deg,var(--navy) 0%,var(--teal) 100%);
+      color:#fff;padding:.85rem 1rem;
+      display:flex;align-items:center;gap:.75rem;
+      position:sticky;top:0;z-index:200;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);
+    }
+    .hdr-icon{font-size:1.6rem}
+    .hdr-info{flex:1;min-width:0}
+    .hdr-title{font-size:1.05rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hdr-sub{font-size:.72rem;opacity:.75;margin-top:.05rem}
+    .hdr-days{
+      background:rgba(255,255,255,.15);border-radius:8px;
+      padding:.3rem .6rem;font-size:.7rem;font-weight:700;white-space:nowrap;
+    }
+
+    /* ===== TAB NAV ===== */
+    .tabs{
+      background:var(--teal);display:flex;
+      overflow-x:auto;scrollbar-width:none;
+      position:sticky;top:57px;z-index:199;
+      box-shadow:0 2px 4px rgba(0,0,0,.15);
+    }
+    .tabs::-webkit-scrollbar{display:none}
+    .tab{
+      flex:1;min-width:max-content;padding:.7rem 1.1rem;
+      background:transparent;border:none;color:rgba(255,255,255,.65);
+      font-size:.8rem;font-weight:700;cursor:pointer;
+      border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;
+    }
+    .tab.on{color:#fff;border-bottom-color:var(--orange)}
+
+    /* ===== TAB PAGES ===== */
+    .page{display:none;padding:1rem;max-width:1100px;margin:0 auto;padding-bottom:5rem}
+    .page.on{display:block}
+
+    /* ===== SECTION TITLE ===== */
+    .sec-title{
+      font-size:.8rem;font-weight:800;color:var(--teal);
+      text-transform:uppercase;letter-spacing:.08em;
+      margin:1.2rem 0 .6rem;
+    }
+    .sec-title:first-child{margin-top:0}
+
+    /* ===== CARD ===== */
+    .card{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .card-hdr{
+      background:var(--navy);color:#fff;
+      padding:.75rem 1rem;font-weight:700;font-size:.88rem;
+      display:flex;align-items:center;gap:.5rem;
+    }
+    .card-hdr.teal{background:var(--teal)}
+    .card-hdr.orange{background:var(--orange-dk)}
+    .card-body{padding:.75rem}
+
+    /* ===== WEEK GRID ===== */
+    .grid-wrap{overflow-x:auto;border-radius:var(--radius);box-shadow:var(--shadow)}
+    .wgrid{
+      display:grid;grid-template-columns:52px repeat(6,1fr);
+      background:var(--bg-card);min-width:600px;
+    }
+    .wg-h{
+      background:var(--navy);color:#fff;
+      padding:.55rem .35rem;text-align:center;font-size:.72rem;font-weight:700;
+    }
+    .wg-h.th{background:var(--teal);cursor:default}
+    .wg-dh{
+      background:var(--navy);color:#fff;
+      padding:.55rem .35rem;text-align:center;
+      cursor:pointer;transition:background .18s;
+    }
+    .wg-dh:hover{background:var(--teal)}
+    .wg-dh .dn{font-size:.65rem;opacity:.75}
+    .wg-dh .dd{font-size:.8rem;font-weight:800}
+    .wg-time{
+      font-size:.6rem;color:var(--txt-muted);
+      padding:2px 4px;border-top:1px solid var(--border);
+      background:#f7f9fb;text-align:right;
+      height:36px;display:flex;align-items:flex-start;justify-content:flex-end;
+    }
+    .wg-cell{
+      border-left:1px solid var(--border);border-top:1px solid var(--border);
+      height:36px;position:relative;cursor:pointer;transition:background .12s;
+    }
+    .wg-cell:hover{background:rgba(0,83,83,.06)}
+    .act-blk{
+      position:absolute;left:2px;right:2px;top:2px;bottom:2px;
+      border-radius:4px;padding:1px 3px;
+      font-size:.58rem;font-weight:700;overflow:hidden;
+      cursor:pointer;line-height:1.3;
+    }
+    /* grid block colors by type */
+    .blk-transport{background:rgba(7,41,77,.14);color:#07294D;border-left:3px solid #07294D}
+    .blk-sightseeing{background:rgba(0,134,139,.15);color:#004040;border-left:3px solid #00868B}
+    .blk-restaurant{background:rgba(236,163,78,.22);color:#7a4e00;border-left:3px solid #ECA34E}
+    .blk-museum{background:rgba(39,144,144,.18);color:#1a5555;border-left:3px solid #279090}
+    .blk-hotel{background:rgba(157,73,84,.15);color:#7a2b35;border-left:3px solid #9D4954}
+    /* grid block colors by group */
+    .blk-wbg{background:rgba(231,140,34,.20);color:#7a4e00;border-left:3px solid var(--orange-dk)}
+    .blk-ba{background:var(--ba-blue-lt);color:var(--ba-blue-dk);border-left:3px solid var(--ba-blue)}
+
+    /* ===== DAY CARDS GRID ===== */
+    .dcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.85rem}
+    .dcard{
+      background:var(--bg-card);border-radius:var(--radius);
+      box-shadow:var(--shadow);cursor:pointer;overflow:hidden;
+      transition:transform .18s,box-shadow .18s;
+      border-top:4px solid var(--teal);
+    }
+    .dcard:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+    .dcard-hdr{
+      padding:.7rem 1rem;display:flex;justify-content:space-between;align-items:baseline;
+      border-bottom:1px solid var(--border);
+    }
+    .dcard-hdr .dn{font-weight:800;font-size:.92rem}
+    .dcard-hdr .dd{font-size:.78rem;color:var(--txt-muted)}
+    .dcard-body{padding:.6rem .75rem}
+    .dcard-act{display:flex;align-items:center;gap:.45rem;padding:.28rem 0;font-size:.8rem}
+    .dcard-act .t{color:var(--txt-muted);font-size:.7rem;min-width:38px;font-weight:600}
+    .dcard-act .ic{font-size:.9rem;flex-shrink:0}
+    /* group dot in day card */
+    .dcard-act .grp{
+      width:8px;height:8px;border-radius:50%;flex-shrink:0;
+    }
+    .grp-wbg{background:var(--orange-dk)}
+    .grp-ba{background:var(--ba-blue)}
+    /* day note */
+    .dcard-note{
+      font-size:.72rem;font-weight:600;
+      padding:.3rem .75rem .3rem 1rem;
+      background:rgba(236,163,78,.12);
+      border-left:3px solid var(--orange);
+      color:#7a4e00;
+    }
+
+    /* ===== DAY NAVIGATOR ===== */
+    .day-nav{display:flex;gap:.45rem;overflow-x:auto;scrollbar-width:none;padding-bottom:.35rem}
+    .day-nav::-webkit-scrollbar{display:none}
+    .dnav-btn{
+      flex-shrink:0;padding:.45rem .85rem;
+      border-radius:20px;border:2px solid var(--border);
+      background:var(--bg-card);color:var(--txt);
+      font-size:.78rem;font-weight:700;cursor:pointer;transition:all .2s;
+      white-space:nowrap;
+    }
+    .dnav-btn.on{background:var(--teal);border-color:var(--teal);color:#fff}
+
+    /* ===== DAY LAYOUT ===== */
+    .day-layout{display:grid;grid-template-columns:1fr;gap:1rem}
+    @media(min-width:720px){.day-layout{grid-template-columns:1fr 1fr}}
+
+    /* ===== TIMELINE ===== */
+    .tl-note{
+      background:rgba(236,163,78,.12);border-left:3px solid var(--orange);
+      padding:.4rem .75rem;font-size:.78rem;font-weight:600;color:#7a4e00;
+      border-radius:0 6px 6px 0;margin:.35rem .5rem .65rem;
+    }
+    .tl-body{padding:.35rem .5rem}
+    .tl-item{
+      display:flex;gap:.7rem;padding:.65rem .4rem;
+      border-radius:8px;transition:background .12s;cursor:pointer;
+      position:relative;
+    }
+    .tl-item:hover{background:var(--bg)}
+    .tl-item:not(:last-child)::after{
+      content:'';position:absolute;
+      left:calc(.4rem + 17px);top:calc(.65rem + 34px);
+      bottom:0;width:2px;background:var(--border);z-index:0;
+    }
+    .tl-dot{
+      width:34px;height:34px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.95rem;flex-shrink:0;z-index:1;position:relative;
+      box-shadow:0 2px 6px rgba(0,0,0,.15);
+    }
+    .dot-transport{background:var(--navy);color:#fff}
+    .dot-sightseeing{background:var(--teal-lt);color:#fff}
+    .dot-restaurant{background:var(--orange);color:#fff}
+    .dot-museum{background:var(--teal-mid);color:#fff}
+    .dot-hotel{background:var(--red);color:#fff}
+    .tl-info{flex:1;min-width:0}
+    .tl-time{font-size:.68rem;color:var(--txt-muted);font-weight:700;margin-bottom:.08rem}
+    .tl-title{font-size:.92rem;font-weight:800;color:var(--txt)}
+    .tl-desc{font-size:.78rem;color:var(--txt-muted);margin-top:.15rem;line-height:1.4}
+    .tl-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}
+    .tag{padding:.18rem .5rem;border-radius:12px;font-size:.68rem;font-weight:700}
+    .tag-ticket{background:rgba(39,144,144,.12);color:var(--teal)}
+    .tag-person{background:rgba(236,163,78,.18);color:#8a5200}
+    .tag-booked{background:rgba(7,41,77,.10);color:var(--navy)}
+    /* group tags */
+    .tag-wbg{background:rgba(231,140,34,.18);color:var(--orange-dk)}
+    .tag-ba{background:var(--ba-blue-lt);color:var(--ba-blue-dk)}
+    .tl-maps-link{
+      display:inline-flex;align-items:center;gap:.3rem;
+      margin-top:.4rem;font-size:.72rem;color:var(--teal-lt);font-weight:700;
+      border:1px solid var(--teal-lt);border-radius:6px;
+      padding:.2rem .55rem;transition:background .15s;
+    }
+    .tl-maps-link:hover{background:rgba(0,134,139,.08)}
+    .walk-row{
+      display:flex;align-items:center;gap:.5rem;
+      padding:.2rem .4rem .2rem 3.25rem;
+      font-size:.72rem;color:var(--txt-muted);
+    }
+    .walk-line{flex:1;height:1px;background:var(--border)}
+
+    /* ===== MAP ===== */
+    #day-map{height:320px}
+    @media(min-width:720px){#day-map{height:430px}}
+    .leaflet-popup-content{margin:10px 14px}
+
+    /* ===== INFO GRID ===== */
+    .info-grid{display:grid;gap:1rem;grid-template-columns:1fr}
+    @media(min-width:560px){.info-grid{grid-template-columns:1fr 1fr}}
+    .info-row{display:flex;gap:.5rem;padding:.5rem 0;border-bottom:1px solid var(--bg);font-size:.83rem}
+    .info-row:last-child{border-bottom:none}
+    .info-lbl{font-weight:700;color:var(--txt-muted);min-width:70px;flex-shrink:0}
+    .info-val{flex:1;color:var(--txt)}
+
+    /* ===== LEGEND ===== */
+    .legend-bar{
+      display:flex;flex-wrap:wrap;gap:.5rem;
+      padding:.6rem .75rem;background:var(--bg);border-radius:8px;margin-bottom:.75rem;
+      font-size:.75rem;font-weight:700;align-items:center;
+    }
+    .legend-dot{
+      display:inline-flex;align-items:center;gap:.35rem;
+      padding:.22rem .6rem;border-radius:12px;
+    }
+    .legend-dot.wbg{background:rgba(231,140,34,.18);color:var(--orange-dk)}
+    .legend-dot.ba{background:var(--ba-blue-lt);color:var(--ba-blue-dk)}
+
+    /* ===== TICKETS ===== */
+    .ticket-item{
+      background:var(--bg);border-radius:8px;padding:.6rem .75rem;
+      margin-bottom:.5rem;border-left:4px solid var(--teal-mid);
+    }
+    .ticket-item:last-child{margin-bottom:0}
+    .ticket-nm{font-weight:800;font-size:.84rem}
+    .ticket-meta{font-size:.74rem;color:var(--txt-muted);margin-top:.2rem;display:flex;flex-wrap:wrap;gap:.3rem}
+    .ticket-meta .badge{
+      padding:.12rem .4rem;border-radius:10px;
+      background:rgba(0,83,83,.1);color:var(--teal);font-weight:700;
+    }
+    .ticket-meta .badge.orange{background:rgba(236,163,78,.2);color:#8a5200}
+    .ticket-meta .badge.ba{background:var(--ba-blue-lt);color:var(--ba-blue-dk)}
+
+    /* ===== OVERVIEW MAP ===== */
+    #overview-map{height:460px}
+    @media(min-width:720px){#overview-map{height:560px}}
+    .day-legend{display:flex;flex-wrap:wrap;gap:.4rem;padding:.6rem .75rem;background:var(--bg);border-radius:8px;margin-bottom:.75rem}
+    .day-legend-dot{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .55rem;border-radius:12px;font-size:.73rem;font-weight:700;color:#fff}
+
+    /* ===== SCROLL TOP ===== */
+    #scroll-top{
+      position:fixed;bottom:1.2rem;right:1.2rem;
+      width:42px;height:42px;background:var(--teal);color:#fff;
+      border:none;border-radius:50%;font-size:1.1rem;cursor:pointer;
+      box-shadow:0 4px 14px rgba(0,83,83,.35);
+      display:none;align-items:center;justify-content:center;z-index:150;
+      transition:transform .15s;
+    }
+    #scroll-top.vis{display:flex}
+    #scroll-top:hover{transform:scale(1.1)}
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:480px){
+      .hdr-title{font-size:.95rem}
+      .tab{font-size:.73rem;padding:.65rem .85rem}
+    }
+
+    /* ===== POI TOGGLE ===== */
+    .poi-toggle{
+      margin-left:auto;background:rgba(255,107,157,.15);
+      color:#FF6B9D;border:1.5px solid #FF6B9D;
+      border-radius:8px;padding:.2rem .55rem;
+      font-size:.7rem;font-weight:700;cursor:pointer;
+      transition:background .15s,color .15s;white-space:nowrap;
+    }
+    .poi-toggle.on{background:#FF6B9D;color:#fff}
+    .poi-status{font-size:.65rem;color:var(--teal);padding:.22rem .75rem;
+      background:rgba(0,134,139,.06);empty-cells:show}
+  </style>
+</head>
+<body>
+
+<!-- ============================= PASSWORD ============================= -->
+<div id="pw-screen">
+  <div class="pw-card">
+    <div class="pw-logo">🏛️</div>
+    <div class="pw-title">Rom 2026</div>
+    <div class="pw-sub">
+      31. Mai – 5. Juni 2026
+      <span>La Dolce Vita · Private Reiseplanung</span>
+    </div>
+    <input id="pw-inp" class="pw-input" type="password" placeholder="Passwort"
+           autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="pw-err" id="pw-err"></div>
+    <button class="pw-btn" onclick="doLogin()">🗝️ &nbsp; Reise öffnen</button>
+  </div>
+</div>
+
+<!-- ============================= APP ============================= -->
+<div id="app">
+
+  <!-- Header -->
+  <header class="hdr">
+    <div class="hdr-icon">🏛️</div>
+    <div class="hdr-info">
+      <div class="hdr-title">Rom 2026 – La Dolce Vita</div>
+      <div class="hdr-sub">31. Mai – 5. Juni · WBG · Björn · Alex</div>
+    </div>
+    <div class="hdr-days" id="hdr-days">6 Tage</div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="tabs" id="tabs">
+    <button class="tab on"  data-tab="overview">📅 Übersicht</button>
+    <button class="tab"     data-tab="itinerary">📍 Reiseverlauf</button>
+    <button class="tab"     data-tab="info">📌 Wichtige Daten</button>
+    <button class="tab"     data-tab="map">🗺️ Karte</button>
+  </nav>
+
+  <!-- ======== TAB: OVERVIEW ======== -->
+  <div id="page-overview" class="page on">
+    <div class="legend-bar">
+      <span style="font-size:.75rem;color:var(--txt-muted);margin-right:.25rem">Legende:</span>
+      <span class="legend-dot wbg">🏫 WBG-Gruppe</span>
+      <span class="legend-dot ba">👥 Björn &amp; Alex</span>
+    </div>
+    <div class="sec-title">📆 Wochenplan</div>
+    <div class="grid-wrap">
+      <div class="wgrid" id="wgrid"></div>
+    </div>
+
+    <div class="sec-title" style="margin-top:1.5rem">🗂️ Tagesübersicht – Klicken für Details</div>
+    <div class="dcards" id="dcards"></div>
+  </div>
+
+  <!-- ======== TAB: ITINERARY ======== -->
+  <div id="page-itinerary" class="page">
+    <div class="day-nav" id="day-nav"></div>
+    <div class="day-layout">
+      <!-- Timeline -->
+      <div class="card">
+        <div class="card-hdr teal" id="tl-hdr">📋 Tagesplan</div>
+        <div id="tl-note-wrap"></div>
+        <div class="tl-body" id="tl-body"></div>
+      </div>
+      <!-- Map -->
+      <div class="card">
+        <div class="card-hdr" style="display:flex;align-items:center">🗺️ Karte des Tages
+          <button class="poi-toggle on" onclick="togglePOIs()">🌸 POIs</button>
+        </div>
+        <div id="poi-status-day" class="poi-status"></div>
+        <div id="day-map"></div>
+        <div style="padding:.45rem .75rem;font-size:.7rem;color:var(--txt-muted)">
+          © <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a> · Auf Pins tippen für Navigation
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== TAB: INFO ======== -->
+  <div id="page-info" class="page">
+    <div class="info-grid">
+
+      <!-- Reise -->
+      <div class="card">
+        <div class="card-hdr">✈️ Reisedaten</div>
+        <div class="card-body">
+          <div class="info-row"><span class="info-lbl">B&amp;A Anreise</span><span class="info-val">So, 31.05. · 08:00 – 09:50 Uhr</span></div>
+          <div class="info-row"><span class="info-lbl">WBG Ankunft</span><span class="info-val">Mo, 01.06. · 10:05 Uhr</span></div>
+          <div class="info-row"><span class="info-lbl">Abreise</span><span class="info-val">Fr, 05.06. · 16:40 – 18:30 Uhr</span></div>
+          <div class="info-row"><span class="info-lbl">Reisende</span><span class="info-val">WBG-Klasse · Björn · Alex</span></div>
+          <div class="info-row"><span class="info-lbl">Nächte</span><span class="info-val">5 Nächte (31.05. – 05.06.)</span></div>
+        </div>
+      </div>
+
+      <!-- Hotel -->
+      <div class="card">
+        <div class="card-hdr">🏨 Unterkunft</div>
+        <div class="card-body">
+          <div class="info-row"><span class="info-lbl">Hotel</span><span class="info-val">Leonardo Boutique Hotel · Termini (alle 5 Nächte)</span></div>
+          <div class="info-row"><span class="info-lbl">Check-in</span><span class="info-val">So, 31. Mai 2026</span></div>
+          <div class="info-row"><span class="info-lbl">Check-out</span><span class="info-val">Fr, 5. Juni 2026</span></div>
+          <div class="info-row" style="margin-top:.3rem">
+            <a href="https://www.google.com/maps/search/?api=1&query=41.9013,12.4983" target="_blank"
+               style="font-size:.78rem;font-weight:700;color:var(--teal-lt);display:flex;align-items:center;gap:.3rem">
+              📍 Auf Karte zeigen
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Besondere Hinweise -->
+      <div class="card">
+        <div class="card-hdr orange">📌 Besondere Hinweise</div>
+        <div class="card-body">
+          <div class="ticket-item" style="border-left-color:var(--orange)">
+            <div class="ticket-nm">🇮🇹 Nationalfeiertag – Di, 02.06.</div>
+            <div class="ticket-meta"><span>Festa della Repubblica – einige Museen/Läden geschlossen oder überfüllt</span></div>
+          </div>
+          <div class="ticket-item" style="border-left-color:var(--orange)">
+            <div class="ticket-nm">⛪ Papstaudienz – Do, 04.06.</div>
+            <div class="ticket-meta"><span>Mittwochsaudienz auf dem Petersplatz (vormittags) – erhöhtes Besucheraufkommen im Vatikan</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tickets -->
+      <div class="card">
+        <div class="card-hdr teal">🎟️ Tickets &amp; Buchungen</div>
+        <div class="card-body">
+          <div class="ticket-item">
+            <div class="ticket-nm">🏛️ Kolosseum + Forum Romanum + Palatin</div>
+            <div class="ticket-meta">
+              <span>Mi, 03.06. · 12:30 Uhr</span>
+              <span class="badge orange">🏫 WBG</span>
+            </div>
+          </div>
+          <div class="ticket-item">
+            <div class="ticket-nm">🎨 Vatikanische Museen &amp; Petersdom</div>
+            <div class="ticket-meta">
+              <span>Do, 04.06. · 13:00 Uhr</span>
+              <span class="badge orange">🏫 WBG · Björn</span>
+            </div>
+          </div>
+          <div class="ticket-item">
+            <div class="ticket-nm">⛏️ Katakomben San Sebastiano</div>
+            <div class="ticket-meta">
+              <span>Di, 02.06. · ca. 09:30 Uhr</span>
+              <span class="badge orange">🏫 WBG · Alex</span>
+            </div>
+          </div>
+          <div class="ticket-item">
+            <div class="ticket-nm">🔵 Pantheon</div>
+            <div class="ticket-meta">
+              <span>So, 31.05. · 15:00 – 16:00 Uhr</span>
+              <span class="badge ba">👥 B&amp;A · Alex</span>
+            </div>
+          </div>
+          <div class="ticket-item">
+            <div class="ticket-nm">🏛️ Vittoriano e Palazzo Venezia</div>
+            <div class="ticket-meta">
+              <span>Mo, 01.06. · ab 19:00 Uhr</span>
+              <span class="badge ba">👥 B&amp;A · Björn</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Restaurants -->
+      <div class="card">
+        <div class="card-hdr orange">🍽️ Restaurants</div>
+        <div class="card-body">
+          <div class="ticket-item" style="border-left-color:var(--ba-blue)">
+            <div class="ticket-nm">Ristorante Pancrazio dal 1922</div>
+            <div class="ticket-meta">
+              <span>So, 31.05. · 19:30 Uhr</span>
+              <span class="badge ba">👥 B&amp;A · Alex</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=41.8959,12.4728" target="_blank" class="badge" style="background:rgba(0,134,139,.1);color:var(--teal)">📍 Maps</a>
+            </div>
+          </div>
+          <div class="ticket-item" style="border-left-color:var(--ba-blue)">
+            <div class="ticket-nm">Dar Brutione – Rione Monti</div>
+            <div class="ticket-meta">
+              <span>Di, 02.06. · 19:00 Uhr</span>
+              <span class="badge ba">👥 B&amp;A · Alex</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=41.8946,12.4949" target="_blank" class="badge" style="background:rgba(0,134,139,.1);color:var(--teal)">📍 Maps</a>
+            </div>
+          </div>
+          <div class="ticket-item" style="border-left-color:var(--ba-blue)">
+            <div class="ticket-nm">Pizzeria La Boccaccia &amp; Suppli Roma</div>
+            <div class="ticket-meta">
+              <span>Do, 04.06. · Abends</span>
+              <span class="badge ba">👥 B&amp;A · Walk-in</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=41.8960,12.4681" target="_blank" class="badge" style="background:rgba(0,134,139,.1);color:var(--teal)">📍 Maps</a>
+            </div>
+          </div>
+          <div class="ticket-item" style="border-left-color:var(--ba-blue)">
+            <div class="ticket-nm">Oro Bistrot</div>
+            <div class="ticket-meta">
+              <span>Do, 04.06. · Spät-Abend</span>
+              <span class="badge ba">👥 B&amp;A · Björn</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=41.9026,12.4577" target="_blank" class="badge" style="background:rgba(0,134,139,.1);color:var(--teal)">📍 Maps</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Maps Listen -->
+      <!-- (moved to Karte tab) -->
+
+    </div><!-- /info-grid -->
+  </div>
+
+  <!-- ======== TAB: KARTE ======== -->
+  <div id="page-map" class="page">
+    <div class="sec-title">📍 Geplante Aktivitäten – alle Tage</div>
+    <div class="day-legend" id="day-legend"></div>
+    <div class="card" style="overflow:hidden;margin-bottom:1.25rem">
+      <div class="card-hdr" style="display:flex;align-items:center">🗺️ Alle Aktivitäten
+        <button class="poi-toggle on" onclick="togglePOIs()">🌸 POIs</button>
+      </div>
+      <div id="poi-status-ov" class="poi-status"></div>
+      <div id="overview-map"></div>
+      <div style="padding:.45rem .75rem;font-size:.7rem;color:var(--txt-muted)">
+        © <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a> · Auf Pins tippen für Details
+      </div>
+    </div>
+</div><!-- /app -->
+
+<button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ================================================================
+//  PASSWORD
+// ================================================================
+(function(){
+  const K='rome26_ok';
+  function h(s){let n=5381;for(let i=0;i<s.length;i++)n=((n<<5)+n)+s.charCodeAt(i)&0xFFFFFFFF;return(n>>>0).toString(36)}
+  const OK=h('Rom2026');
+  window.doLogin=function(){
+    const v=document.getElementById('pw-inp').value;
+    const e=document.getElementById('pw-err');
+    if(h(v)===OK){
+      sessionStorage.setItem(K,'1');
+      document.getElementById('pw-screen').style.display='none';
+      document.getElementById('app').style.display='flex';
+      initApp();
+    } else {
+      const inp=document.getElementById('pw-inp');
+      inp.classList.remove('shake');
+      void inp.offsetWidth;
+      inp.classList.add('shake');
+      e.textContent='Falsches Passwort. Bitte erneut versuchen.';
+      setTimeout(()=>e.textContent='',3000);
+    }
+  };
+  if(sessionStorage.getItem(K)==='1'){
+    document.getElementById('pw-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.addEventListener('DOMContentLoaded',initApp);
+  }
+})();
+
+// ================================================================
+//  DATA
+// ================================================================
+const T={
+  transport:  {ic:'✈️', lbl:'Transport'},
+  sightseeing:{ic:'👁️', lbl:'Sehenswürdigkeit'},
+  restaurant: {ic:'🍽️', lbl:'Restaurant'},
+  museum:     {ic:'🏛️', lbl:'Museum/Ticket'},
+  hotel:      {ic:'🏨', lbl:'Unterkunft'},
+};
+
+// group: 'wbg' = WBG-Schule (orange), 'ba' = Björn & Alex only (hellblau), null = alle/kein Label
+const DAYS=[
+  {
+    id:0, wday:'Sonntag', ws:'So', dl:'31.05.', fl:'Sonntag, 31. Mai',
+    note:null,
+    acts:[
+      {tm:'08:00',et:'09:50',ttl:'Anreise nach Rom',
+       desc:'Flug / Transfer – Björn & Alex reisen an (Ankunft ca. 09:50 Uhr).',
+       type:'transport',group:'ba',c:null,ticket:null,bk:null},
+      {tm:'15:00',et:'16:00',ttl:'Pantheon',
+       desc:'Eines der besterhaltenen Bauwerke der Antike. Ehemaliger römischer Tempel, heute Kirche – atemberaubendes Oculus-Lichtspiel.',
+       type:'museum',group:'ba',c:[41.8986,12.4768],ticket:null,bk:'Alex',
+       addr:'Piazza della Rotonda, Roma'},
+      {tm:'19:30',ttl:'Ristorante Pancrazio dal 1922',
+       desc:'Traditionelles römisches Restaurant direkt über den Überresten des Teatro di Pompeo. Laufzeit vom Pantheon: ≈ 7 Min.',
+       type:'restaurant',group:'ba',c:[41.8959,12.4728],ticket:null,bk:'Alex',
+       addr:'Piazza del Biscione, 92, Roma'},
+    ]
+  },
+  {
+    id:1, wday:'Montag', ws:'Mo', dl:'01.06.', fl:'Montag, 1. Juni',
+    note:null,
+    acts:[
+      {tm:'09:30',ttl:'Frühstück – Hotel Trevi',
+       desc:'Walk-in Frühstück im Hotel Trevi (Bar/Café nahe dem Trevi-Brunnen) – keine Reservierung möglich. Unterkunft ist das Leonardo Boutique Termini.',
+       type:'restaurant',group:'ba',c:[41.9003,12.4827],ticket:null,bk:'Walk-in'},
+      {tm:'10:05',ttl:'WBG-Gruppe Ankunft',
+       desc:'Gemeinsamer Start – WBG trifft in Rom ein. Gepäck verstauen, gemeinsam losziehen!',
+       type:'transport',group:'wbg',c:null,ticket:null,bk:null},
+      {tm:'11:30',ttl:'Piazza Navona',
+       desc:'Einer der schönsten Plätze Roms. Berninis Vierströmebrunnen, Cafés, Straßenkünstler – idealer Einstieg ins römische Dolce Vita.',
+       type:'sightseeing',group:null,c:[41.8992,12.4731],ticket:null,bk:null,
+       addr:'Piazza Navona, Roma'},
+      {tm:'13:30',ttl:'Spanische Treppe',
+       desc:'Die berühmte 135-stufige Freitreppe zur Trinità dei Monti. Modeboutiquen rundum, Prosecco verboten – dafür Selfies erlaubt.',
+       type:'sightseeing',group:null,c:[41.9058,12.4823],ticket:null,bk:null,
+       addr:'Piazza di Spagna, Roma'},
+      {tm:'15:00',ttl:'Trevi-Brunnen',
+       desc:'Der größte Barockbrunnen der Welt (1762). Münze über die linke Schulter werfen für eine Rückkehr nach Rom!',
+       type:'sightseeing',group:null,c:[41.9009,12.4833],ticket:null,bk:null,
+       addr:'Piazza di Trevi, Roma'},
+      {tm:'19:00',ttl:'Vittoriano e Palazzo Venezia',
+       desc:'Nationales Denkmal für König Viktor Emanuel II. – Panoramablick über Rom von der Terrasse. Ticket gültig ganztätig 9:30–19:30 Uhr (letzter Einlass 18:45 Uhr).',
+       type:'museum',group:'ba',c:[41.8942,12.4832],ticket:'Björn',bk:'Björn',
+       addr:'Piazza Venezia, Roma'},
+    ]
+  },
+  {
+    id:2, wday:'Dienstag', ws:'Di', dl:'02.06.', fl:'Dienstag, 2. Juni',
+    note:'🇮🇹 Nationalfeiertag – Festa della Repubblica',
+    acts:[
+      {tm:'09:30',ttl:'Katakomben San Sebastiano',
+       desc:'Frühchristliche unterirdische Grabanlage an der Via Appia Antica. Führung durch die mehrstöckigen Gänge (ca. 1h). Tram/Bus nötig: ~35 Min. vom Zentrum.',
+       type:'museum',group:'wbg',c:[41.8591,12.5132],ticket:'Alex',bk:'Alex',
+       addr:'Via Appia Antica, 136, Roma'},
+      {tm:'12:00',ttl:'Terme di Caracalla',
+       desc:'Imposante Ruinen der größten Badeanlage des antiken Roms (216 n. Chr.). Spektakuläre Fresken, Mosaike und rekonstruierte Bäder.',
+       type:'museum',group:null,c:[41.8791,12.4922],ticket:null,bk:null,
+       addr:'Viale delle Terme di Caracalla, Roma'},
+      {tm:'19:00',ttl:'Dar Brutione – Rione Monti',
+       desc:'Typisch römische Osteria im angesagten Hipster-Viertel Monti. Cacio e Pepe, Carbonara und Amatriciana in Bestform.',
+       type:'restaurant',group:'ba',c:[41.8946,12.4949],ticket:null,bk:'Alex',
+       addr:'Via del Boschetto, Roma'},
+    ]
+  },
+  {
+    id:3, wday:'Mittwoch', ws:'Mi', dl:'03.06.', fl:'Mittwoch, 3. Juni',
+    note:null,
+    acts:[
+      {tm:'12:30',ttl:'Kolosseum',
+       desc:'Das Flavische Amphitheater – größtes Amphitheater der Antike, 70.000 Zuschauer. Kombiticket gilt auch für Forum & Palatin.',
+       type:'museum',group:'wbg',c:[41.8902,12.4922],ticket:'WBG',bk:'WBG',
+       addr:'Piazza del Colosseo, 1, Roma'},
+      {tm:'14:00',ttl:'Forum Romanum',
+       desc:'Das Zentrum des öffentlichen Lebens im antiken Rom – Tempel, Triumphbögen, Basiliken. Der Weg der Triumphzüge.',
+       type:'museum',group:null,c:[41.8925,12.4853],ticket:'WBG',bk:'WBG',
+       addr:'Via Sacra, Roma'},
+      {tm:'15:30',ttl:'Palatinischer Hügel',
+       desc:'Einer der sieben Hügel Roms. Kaiserpaläste und herrlicher Ausblick über Forum & Circus Maximus. Im Kombiticket enthalten.',
+       type:'museum',group:null,c:[41.8891,12.4883],ticket:'WBG',bk:'WBG',
+       addr:'Via Sacra, Roma'},
+    ]
+  },
+  {
+    id:4, wday:'Donnerstag', ws:'Do', dl:'04.06.', fl:'Donnerstag, 4. Juni',
+    note:'⛪ Papstaudienz (vormittags) – erhöhtes Besucheraufkommen im Vatikan',
+    acts:[
+      {tm:'13:00',ttl:'Vatikanische Museen',
+       desc:'Eines der bedeutendsten Museen der Welt – Sixtinische Kapelle, Raffaelzimmer, Pio-Clementino. Zeitfenster-Ticket zwingend notwendig!',
+       type:'museum',group:'wbg',c:[41.9065,12.4536],ticket:'Björn',bk:'Björn',
+       addr:'Viale Vaticano, Roma'},
+      {tm:'15:30',ttl:'Petersdom & Kuppel',
+       desc:'Die größte Kirche der Welt. Michelangelos Pietà, Berninis Baldachin. Kuppel besteigen (551 Stufen) für Panoramablick über Rom.',
+       type:'sightseeing',group:null,c:[41.9022,12.4539],ticket:null,bk:null,
+       addr:'Piazza San Pietro, Città del Vaticano'},
+      {tm:'19:30',ttl:'Pizzeria La Boccaccia & Suppli Roma',
+       desc:'Knusprige römische Pizza al taglio – typisches Abendessen in entspannter Atmosphäre.',
+       type:'restaurant',group:'ba',c:[41.8960,12.4681],ticket:null,bk:null,
+       addr:'Via del Governo Vecchio, Roma'},
+      {tm:'21:00',ttl:'Oro Bistrot',
+       desc:'Stilvolles Abschlussabendgetränk im Prati-Viertel nahe Vatikan – tolles Ambiente und Aperitivi.',
+       type:'restaurant',group:'ba',c:[41.9026,12.4577],ticket:null,bk:'Björn',
+       addr:'Lungotevere Prati, Roma'},
+    ]
+  },
+  {
+    id:5, wday:'Freitag', ws:'Fr', dl:'05.06.', fl:'Freitag, 5. Juni',
+    note:null,
+    acts:[
+      {tm:'09:30',ttl:'Letzter Morgen in Rom',
+       desc:'Frühstück am Campo de\' Fiori, ein letztes Gelato, Souvenirs auf dem Markt – die Ewige Stadt genießen.',
+       type:'sightseeing',group:null,c:[41.8956,12.4719],ticket:null,bk:null,
+       addr:'Campo de\' Fiori, Roma'},
+      {tm:'16:40',et:'18:30',ttl:'Abreise – Arrivederci Roma!',
+       desc:'Rückflug nach Hause. A presto, Roma! 🏛️',
+       type:'transport',group:'ba',c:null,ticket:null,bk:null},
+    ]
+  },
+];
+
+// ================================================================
+//  UTILS
+// ================================================================
+function walkMin(a,b){
+  const R=6371000,d2r=Math.PI/180;
+  const dL=(b[0]-a[0])*d2r, dN=(b[1]-a[1])*d2r;
+  const x=Math.sin(dL/2)**2+Math.cos(a[0]*d2r)*Math.cos(b[0]*d2r)*Math.sin(dN/2)**2;
+  const m=R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+  return Math.max(1,Math.round(m/80));
+}
+function walkStr(a,b){const m=walkMin(a,b);return m<60?`${m} Min.`:`${Math.floor(m/60)}h ${m%60}m`;}
+function gNavUrl(c){return`https://www.google.com/maps/dir/?api=1&destination=${c[0]},${c[1]}&travelmode=walking`;}
+function gPinUrl(c){return`https://www.google.com/maps/search/?api=1&query=${c[0]},${c[1]}`;}
+
+// ================================================================
+//  POI PINS (CSV – Nominatim Geocoding, sessionStorage Cache)
+// ================================================================
+const POI_CACHE_KEY='rome26_pois_v2';
+const POI_PINK='#FF6B9D';
+let poisData=[],poisVisible=true,dayPoiLayer=null,ovPoiLayer=null;
+
+const POI_CSV=`Name,Adresse,Notiz
+Pantheon,"Pantheon, Piazza della Rotonda, Roma, Italia",Trip-Start mit Björn & Alex (So 31.05.)
+Ristorante Pancrazio dal 1922,"Ristorante Pancrazio, Piazza del Biscione 92, Roma, Italia",Abendessen So 31.05. mit B&A
+Piazza Navona,"Piazza Navona, Roma, Italia",Mo 01.06. – kein Ticket
+Spanische Treppe,"Piazza di Spagna, Roma, Italia",Mo 01.06. – kein Ticket
+Trevi-Brunnen,"Fontana di Trevi, Piazza di Trevi, Roma, Italia",Mo 01.06. – kein Ticket
+Katakomben San Sebastiano,"Catacombe di San Sebastiano, Via Appia Antica 136, Roma, Italia",Di 02.06. (Nationalfeiertag)
+Terme di Caracalla,"Terme di Caracalla, Viale delle Terme di Caracalla, Roma, Italia",Di 02.06. – Nationalfeiertag
+Dar Brutione Rione Monti,"Dar Bruttone Rione Monti, Roma, Italia",Abendessen Di 02.06. mit B&A
+Kolosseum,"Colosseo, Piazza del Colosseo, Roma, Italia",Mi 03.06. – Schulgruppe
+Forum Romanum,"Foro Romano, Via della Salara Vecchia 5/6, Roma, Italia",Mi 03.06. – Schulgruppe
+Palatinischer Hügel,"Palatino, Via di San Gregorio 30, Roma, Italia",Mi 03.06. – Schulgruppe
+Vatikanische Museen,"Musei Vaticani, Viale Vaticano, Roma, Italia",Do 04.06. – Papstaudienz-Tag
+Petersdom & Kuppel,"Basilica di San Pietro, Piazza San Pietro, Vaticano, Roma, Italia",Do 04.06. – Papstaudienz-Tag
+Pizzeria La Boccaccia,"Pizzeria La Boccaccia, Roma, Italia",Abendessen Do 04.06. mit B&A
+Suppli Roma,"Suppli Roma, Roma, Italia",Abendessen Do 04.06. mit B&A
+Oro Bistrot,"Oro Bistrot, Roma, Italia",Donnerstag Abend reserviert
+Campo de' Fiori,"Campo de' Fiori, Roma, Italia",Letzter Morgen vor Abreise (Fr 05.06.)
+Leonardo Boutique Hotel Rome Termini,"Leonardo Boutique Hotel Roma Termini, Roma, Italia",Unser Hotel
+La Vita e Un Mozzico,"La Vita e Un Mozzico, Roma, Italia",Sandwich (4.8 Sterne) - Tipp aus Liste
+La Pietra Scheggiata,"La Pietra Scheggiata, Roma, Italia",Italienisch – The best Carbonara 2024
+Trajansmärkte,"Mercati di Traiano, Via Quattro Novembre 94, Roma, Italia",Museum (4.6 Sterne)
+Regoli Pasticceria,"Regoli Pasticceria, Via dello Statuto 60, Roma, Italia",Gebäck (4.5 Sterne) – Tipp aus Liste
+I Pizzicaroli Roma,"I Pizzicaroli, Roma, Italia",Restaurant (4.6 Sterne)
+Saporizzo,"Saporizzo, Roma, Italia",Sandwich (4.9 Sterne) – sehr gut bewertet
+Ai Tre Scalini,"Ai Tre Scalini, Via Panisperna 251, Roma, Italia",Italienisch (4.5 Sterne)
+Casa Manco,"Casa Manco, Mercato Testaccio, Roma, Italia",Pizza (4.9 Sterne) – top bewertet
+Forno Campo de' Fiori,"Forno Campo de' Fiori, Roma, Italia",Bäckerei direkt am Campo de' Fiori
+Sciascia Caffe 1919,"Sciascia Caffe, Via Fabio Massimo 80, Roma, Italia",Café (4.5 Sterne)
+Portico di Ottavia,"Portico di Ottavia, Roma, Italia",Aussicht von Insta
+Largo di Torre Argentina,"Largo di Torre Argentina, Roma, Italia",Caesar wurde hier ermordet
+Quartiere Coppede,"Quartiere Coppede, Roma, Italia",Kulturelles Denkmal (4.8 Sterne)
+The Court Bar Palazzo Manfredi,"The Court at Hotel Palazzo Manfredi, Via Labicana 125, Roma, Italia",Cocktails mit Kolosseum-View
+Viktor-Emanuelsdenkmal,"Altare della Patria, Piazza Venezia, Roma, Italia",Historische Sehenswürdigkeit
+Caffe Antica Roma,"Caffe Antica Roma, Roma, Italia",Espressobar (4.8 Sterne)
+Caffetteria Italia al Vittoriano,"Caffetteria Italia al Vittoriano, Roma, Italia",Café am Vittoriano
+Aventine Keyhole,"Giardino degli Aranci, Piazza dei Cavalieri di Malta, Roma, Italia",Sehenswürdigkeit – Schlüsselloch
+Gruft der Kapuziner,"Cripta dei Cappuccini, Via Vittorio Veneto 27, Roma, Italia",Für den Gruselfaktor
+Vicus Caprarius,"Vicus Caprarius, Vicolo del Puttarello 25, Roma, Italia",Archäologisches Museum
+Santa Maria Maddalena,"Santa Maria Maddalena, Piazza della Maddalena, Roma, Italia",Katholische Kirche
+San Pietrino Roman Street Food,"San Pietrino Roman Street Food, Via della Lungaretta, Roma, Italia",Sandwich (4.8 Sterne)
+Antico Forno Roscioli,"Antico Forno Roscioli, Via dei Chiavari 34, Roma, Italia",Bäckerei (4.5 Sterne)
+Mercato Trionfale,"Mercato Trionfale, Via Andrea Doria, Roma, Italia",Markt
+Hotel Fontana,"Hotel Fontana, Piazza di Trevi 96, Roma, Italia",Trevi Brunnen Aussicht – Reservierung angefragt
+Trattoria Da Enzo,"Trattoria Da Enzo al 29, Via dei Vascellari 29, Roma, Italia",Römisch (4.3 Sterne)
+Il Maritozzo Rosso,"Il Maritozzo Rosso, Via Ettore Rolli 50, Roma, Italia",Restaurant (4.4 Sterne)
+La Renella,"La Renella, Via del Moro 15, Roma, Italia",Bäckerei (4.4 Sterne)
+Tropical Ice,"Tropical Ice, Roma, Italia",Eis (4.8 Sterne)
+Gelateria della Papessa,"Gelateria della Papessa, Roma, Italia",Eis (4.8 Sterne)
+Giolitti,"Giolitti, Via degli Uffici del Vicario 40, Roma, Italia",Eis (4.4 Sterne)
+La Norcineria di Iacozzilli,"La Norcineria di Iacozzilli, Roma, Italia",Feinkostgeschäft (4.9 Sterne)
+The Oddity Patch Bar,"The Oddity Patch Bar, Roma, Italia",Falls du auf Patches stehst
+Osteria Bonelli,"Osteria Bonelli, Viale dell'Acquedotto Alessandrino 172, Roma, Italia",Römisch (4.6 Sterne)
+Bistrot er Marchese,"Bistrot er Marchese, Roma, Italia",Bistro (4.8 Sterne)
+Tonnarello Pantheon,"Tonnarello, Via della Paglia, Roma, Italia",Restaurant (4.9 Sterne)
+La Montecarlo,"La Montecarlo, Vicolo Savelli 13, Roma, Italia",Pizza – Vorschlag von Pauli
+Pizzeria Formula 1,"Pizzeria Formula 1, Via degli Equi 13, Roma, Italia",Pizza – Vorschlag von Pauli
+Castroni,"Castroni, Via Cola di Rienzo, Roma, Italia",Delikatessengeschäft – mehrere Filialen
+Ristorante La Sagrestia,"Ristorante La Sagrestia, Via del Seminario 89, Roma, Italia",Sehr gut für in der Stadt
+Salumeria Roscioli,"Salumeria Roscioli, Via dei Giubbonari 21, Roma, Italia",Reservierung 4+ Wochen Vorlauf
+Il Papiro,"Il Papiro, Roma, Italia",Neuheitenshop (5.0 Sterne)`;
+
+function parsePOICSV(csv){
+  return csv.trim().split('\n').slice(1).map(line=>{
+    const m=line.match(/^(.*?),"(.*?)",(.*)$/);
+    if(!m)return null;
+    return{name:m[1].trim(),addr:m[2].trim(),note:m[3].trim(),c:null};
+  }).filter(Boolean);
+}
+
+function poiIcon(){
+  return L.divIcon({
+    html:`<div style="width:18px;height:18px;background:${POI_PINK};transform:rotate(45deg);border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
+    className:'',iconSize:[18,18],iconAnchor:[9,9]
+  });
+}
+
+function poiMarker(poi){
+  return L.marker(poi.c,{icon:poiIcon()}).bindPopup(
+    `<div style="min-width:150px;font-family:sans-serif">`+
+    `<div style="font-weight:800;font-size:.85rem;margin-bottom:3px;color:${POI_PINK}">🌸 ${poi.name}</div>`+
+    (poi.note?`<div style="font-size:.74rem;color:#666;margin-bottom:5px">${poi.note}</div>`:'')+
+    `<a href="https://www.google.com/maps/dir/?api=1&destination=${poi.c[0]},${poi.c[1]}&travelmode=walking" target="_blank"`+
+    ` style="display:inline-block;padding:4px 9px;background:${POI_PINK};color:#fff;border-radius:5px;font-size:.72rem;font-weight:700;text-decoration:none">`+
+    `🧭 Navigation</a></div>`);
+}
+
+function attachPOIsToLayer(layer){
+  poisData.forEach(p=>{if(p&&p.c)layer.addLayer(poiMarker(p));});
+}
+
+function updatePOIStatus(msg){
+  ['poi-status-day','poi-status-ov'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.textContent=msg||'';
+  });
+}
+
+function togglePOIs(){
+  poisVisible=!poisVisible;
+  [{map:leafMap,layer:dayPoiLayer,btn:'poi-toggle-day-btn'},
+   {map:overviewMap,layer:ovPoiLayer,btn:'poi-toggle-ov-btn'}
+  ].forEach(({map,layer,btn})=>{
+    if(!map||!layer)return;
+    if(poisVisible)layer.addTo(map);else map.removeLayer(layer);
+  });
+  document.querySelectorAll('.poi-toggle').forEach(b=>b.classList.toggle('on',poisVisible));
+}
+
+async function geocodePOI(addr){
+  const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=it`;
+  try{
+    const r=await fetch(url,{headers:{'Accept-Language':'de','User-Agent':'Rom2026-Reiseplanung/1.0'}});
+    const j=await r.json();
+    if(j.length)return[+j[0].lat,+j[0].lon];
+  }catch(e){}
+  return null;
+}
+
+async function loadPOIs(){
+  const cached=sessionStorage.getItem(POI_CACHE_KEY);
+  if(cached){
+    poisData=JSON.parse(cached);
+    if(dayPoiLayer)attachPOIsToLayer(dayPoiLayer);
+    if(ovPoiLayer)attachPOIsToLayer(ovPoiLayer);
+    return;
+  }
+  const raw=parsePOICSV(POI_CSV);
+  poisData=raw;
+  for(let i=0;i<raw.length;i++){
+    raw[i].c=await geocodePOI(raw[i].addr);
+    updatePOIStatus(`🌸 Lade POIs … ${i+1}/${raw.length}`);
+    if(raw[i].c&&poisVisible){
+      const m=poiMarker(raw[i]);
+      if(dayPoiLayer)dayPoiLayer.addLayer(m);
+      if(ovPoiLayer)ovPoiLayer.addLayer(m);
+    }
+    if(i<raw.length-1)await new Promise(r=>setTimeout(r,1150));
+  }
+  sessionStorage.setItem(POI_CACHE_KEY,JSON.stringify(poisData));
+  updatePOIStatus(null);
+}
+
+// ================================================================
+//  TABS
+// ================================================================
+let currentDay=0, leafMap=null, mapReady=false, overviewMap=null, overviewMapReady=false;
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('tabs').addEventListener('click',e=>{
+    const btn=e.target.closest('.tab');
+    if(!btn)return;
+    const tab=btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b===btn));
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+tab));
+    if(tab==='itinerary'){buildDayNav();buildTimeline(currentDay);if(!mapReady)setTimeout(()=>renderMap(currentDay),120);}
+    if(tab==='map'){if(!overviewMapReady)setTimeout(()=>buildOverviewMap(),120);}
+  });
+  window.addEventListener('scroll',()=>{
+    document.getElementById('scroll-top').classList.toggle('vis',scrollY>250);
+  });
+});
+
+// ================================================================
+//  WEEK GRID
+// ================================================================
+function buildGrid(){
+  const g=document.getElementById('wgrid');g.innerHTML='';
+  const S=8,E=23;
+  el(g,'div','wg-h th','Uhr');
+  DAYS.forEach(d=>{
+    const h=el(g,'div','wg-dh');
+    h.innerHTML=`<div class="dn">${d.wday}</div><div class="dd">${d.dl}</div>`;
+    h.onclick=()=>goDay(d.id);
+  });
+  for(let hr=S;hr<E;hr++){
+    el(g,'div','wg-time',`${hr}:00`);
+    DAYS.forEach(d=>{
+      const c=el(g,'div','wg-cell');
+      c.onclick=()=>goDay(d.id);
+      d.acts.filter(a=>+a.tm.split(':')[0]===hr).forEach(a=>{
+        // group takes precedence for color, fallback to type
+        const blkCls = a.group==='wbg' ? 'act-blk blk-wbg' :
+                       a.group==='ba'  ? 'act-blk blk-ba'  :
+                       `act-blk blk-${a.type}`;
+        const b=el(c,'div',blkCls);
+        b.textContent=a.ttl;b.title=`${a.tm} – ${a.ttl}`;
+      });
+    });
+  }
+}
+
+// ================================================================
+//  DAY CARDS
+// ================================================================
+function buildDayCards(){
+  const ct=document.getElementById('dcards');ct.innerHTML='';
+  DAYS.forEach(d=>{
+    const card=el(ct,'div','dcard');
+    card.onclick=()=>goDay(d.id);
+    const hdr=el(card,'div','dcard-hdr');
+    el(hdr,'span','dn',d.wday);el(hdr,'span','dd',d.dl);
+    if(d.note){
+      const n=el(card,'div','dcard-note');n.textContent=d.note;
+    }
+    const body=el(card,'div','dcard-body');
+    d.acts.forEach(a=>{
+      const row=el(body,'div','dcard-act');
+      if(a.group){
+        const dot=el(row,'div',`grp ${a.group==='wbg'?'grp-wbg':'grp-ba'}`);
+      } else {
+        el(row,'div','grp',null).style.opacity='0';
+      }
+      el(row,'span','ic',T[a.type].ic);
+      el(row,'span','t',a.tm);
+      el(row,'span','',a.ttl);
+    });
+  });
+}
+
+// ================================================================
+//  DAY NAV
+// ================================================================
+function buildDayNav(){
+  const n=document.getElementById('day-nav');n.innerHTML='';
+  DAYS.forEach(d=>{
+    const b=el(n,'button','dnav-btn'+(d.id===currentDay?' on':''));
+    b.textContent=`${d.ws} ${d.dl}`;
+    b.onclick=()=>selectDay(d.id);
+  });
+}
+
+// ================================================================
+//  TIMELINE
+// ================================================================
+function buildTimeline(id){
+  const d=DAYS[id];
+  document.getElementById('tl-hdr').textContent=`📋 ${d.fl}`;
+  // day note
+  const nw=document.getElementById('tl-note-wrap');nw.innerHTML='';
+  if(d.note){
+    const n=el(nw,'div','tl-note');n.textContent=d.note;
+  }
+  const body=document.getElementById('tl-body');body.innerHTML='';
+  d.acts.forEach((a,i)=>{
+    const item=el(body,'div','tl-item');
+    const dot=el(item,'div',`tl-dot dot-${a.type}`);dot.textContent=T[a.type].ic;
+    const info=el(item,'div','tl-info');
+    el(info,'div','tl-time',a.tm+(a.et?' – '+a.et:''));
+    el(info,'div','tl-title',a.ttl);
+    el(info,'div','tl-desc',a.desc);
+    // tags: group + owner
+    if(a.group||a.ticket||a.bk){
+      const tags=el(info,'div','tl-tags');
+      if(a.group){
+        const gb=el(tags,'span',a.group==='wbg'?'tag tag-wbg':'tag tag-ba');
+        gb.textContent=a.group==='wbg'?'🏫 WBG':'👥 Björn & Alex';
+      }
+      const owner=a.ticket||a.bk;
+      if(owner){
+        const t=el(tags,'span','tag tag-person');
+        t.textContent=`🎟️ ${owner}`;
+      }
+    }
+    // maps link
+    if(a.c){
+      const ml=el(info,'a','tl-maps-link');
+      ml.href=gNavUrl(a.c);ml.target='_blank';
+      ml.innerHTML='🧭 Navigation starten';
+    }
+    // walk to next
+    if(i<d.acts.length-1){
+      const na=d.acts[i+1];
+      if(a.c&&na.c){
+        const wr=el(body,'div','walk-row');
+        el(wr,'span','',`🚶 ${walkStr(a.c,na.c)} Fußweg`);
+        el(wr,'div','walk-line');
+        el(wr,'span','',na.tm);
+      }
+    }
+  });
+}
+
+// ================================================================
+//  MAP
+// ================================================================
+const TYPE_COLORS={
+  transport:'#07294D',sightseeing:'#00868B',
+  restaurant:'#ECA34E',museum:'#279090',hotel:'#9D4954'
+};
+const GROUP_COLORS={
+  wbg:'#E78C22', ba:'#4FAACC'
+};
+
+function renderMap(id){
+  const d=DAYS[id];
+  const locs=d.acts.filter(a=>a.c);
+  if(leafMap){leafMap.remove();leafMap=null;dayPoiLayer=null;}
+  if(!locs.length){
+    document.getElementById('day-map').innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:center;height:180px;color:#aaa;font-size:.9rem">Kein Kartenort für diesen Tag</div>';
+    return;
+  }
+  leafMap=L.map('day-map',{scrollWheelZoom:false}).setView(locs[0].c,14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap contributors',maxZoom:19
+  }).addTo(leafMap);
+  dayPoiLayer=L.layerGroup();
+  if(poisVisible)dayPoiLayer.addTo(leafMap);
+  attachPOIsToLayer(dayPoiLayer);
+  const bounds=locs.map(a=>a.c);
+  // Hotel marker
+  L.marker([41.9013,12.4983],{icon:hotelIcon()})
+    .addTo(leafMap)
+    .bindPopup('<b>🏨 Unterkunft</b><br><small>Leonardo Boutique Termini</small>');
+  // Activity markers
+  locs.forEach((a,i)=>{
+    const col = a.group ? GROUP_COLORS[a.group] : (TYPE_COLORS[a.type]||'#00868B');
+    const ic=numberedIcon(i+1,col);
+    const groupLabel = a.group==='wbg' ? '<span style="background:rgba(231,140,34,.18);color:#7a4e00;padding:2px 7px;border-radius:10px;font-size:.7rem;font-weight:700">🏫 WBG</span>' :
+                       a.group==='ba'  ? '<span style="background:#D4EEF7;color:#3A8FAE;padding:2px 7px;border-radius:10px;font-size:.7rem;font-weight:700">👥 B&amp;A</span>' : '';
+    L.marker(a.c,{icon:ic}).addTo(leafMap)
+      .bindPopup(`
+        <div style="min-width:170px;font-family:sans-serif">
+          <div style="font-weight:800;font-size:.88rem;margin-bottom:3px">${T[a.type].ic} ${a.ttl}</div>
+          <div style="font-size:.75rem;color:#666;margin-bottom:2px">${a.tm}${a.et?' – '+a.et:''} Uhr</div>
+          ${a.addr?`<div style="font-size:.72rem;color:#888;margin-bottom:5px">📍 ${a.addr}</div>`:''}
+          ${groupLabel ? `<div style="margin-bottom:5px">${groupLabel}</div>` : ''}
+          ${a.ticket?`<div style="font-size:.72rem;background:#e8f4f4;color:#005353;padding:2px 6px;border-radius:4px;display:inline-block;margin-bottom:5px;font-weight:700">🎟️ ${a.ticket}</div>`:''}
+          <br>
+          <a href="${gNavUrl(a.c)}" target="_blank"
+             style="display:inline-block;padding:5px 10px;background:#005353;color:#fff;border-radius:5px;font-size:.73rem;font-weight:700;text-decoration:none;margin-top:2px">
+             🧭 Navigation
+          </a>
+          &nbsp;
+          <a href="${gPinUrl(a.c)}" target="_blank"
+             style="display:inline-block;padding:5px 10px;background:#ECA34E;color:#fff;border-radius:5px;font-size:.73rem;font-weight:700;text-decoration:none;margin-top:2px">
+             📌 Pin
+          </a>
+        </div>`);
+  });
+  if(bounds.length>1)L.polyline(bounds,{color:'#00868B',weight:2.5,opacity:.55,dashArray:'7 7'}).addTo(leafMap);
+  if(bounds.length>1)leafMap.fitBounds(bounds,{padding:[28,28]});
+  else leafMap.setView(bounds[0],15);
+  mapReady=true;
+}
+
+function numberedIcon(n,col){
+  return L.divIcon({
+    html:`<div style="background:${col};color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28)">${n}</div>`,
+    className:'',iconSize:[30,30],iconAnchor:[15,15]
+  });
+}
+function hotelIcon(){
+  return L.divIcon({
+    html:`<div style="background:#9D4954;color:#fff;width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.85rem;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28)">🏨</div>`,
+    className:'',iconSize:[30,30],iconAnchor:[15,15]
+  });
+}
+
+// ================================================================
+//  NAVIGATION
+// ================================================================
+function selectDay(id){
+  currentDay=id;
+  buildDayNav();
+  buildTimeline(id);
+  mapReady=false;
+  renderMap(id);
+}
+
+function goDay(id){
+  currentDay=id;
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',i===1));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-itinerary'));
+  buildDayNav();buildTimeline(id);
+  mapReady=false;
+  setTimeout(()=>renderMap(id),100);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ================================================================
+//  DOM HELPERS
+// ================================================================
+function el(parent,tag,cls,txt){
+  const e=document.createElement(tag||'div');
+  if(cls)e.className=cls;if(txt!=null)e.textContent=txt;
+  if(parent)parent.appendChild(e);return e;
+}
+
+// ================================================================
+//  OVERVIEW MAP (all days)
+// ================================================================
+const DAY_COLORS=['#E78C22','#3A9BDC','#279090','#9D4954','#00868B','#5A6A7A'];
+
+function buildOverviewMap(){
+  if(overviewMapReady)return;
+  // legend
+  const lg=document.getElementById('day-legend');lg.innerHTML='';
+  DAYS.forEach(d=>{
+    const dot=document.createElement('span');
+    dot.className='day-legend-dot';
+    dot.style.background=DAY_COLORS[d.id];
+    dot.textContent=`${d.ws} ${d.dl}`;
+    lg.appendChild(dot);
+  });
+  // map
+  overviewMap=L.map('overview-map',{scrollWheelZoom:false}).setView([41.8902,12.4922],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap contributors',maxZoom:19
+  }).addTo(overviewMap);
+  ovPoiLayer=L.layerGroup();
+  if(poisVisible)ovPoiLayer.addTo(overviewMap);
+  attachPOIsToLayer(ovPoiLayer);
+  // hotel
+  L.marker([41.9013,12.4983],{icon:hotelIcon()})
+    .addTo(overviewMap)
+    .bindPopup('<b>🏨 Unterkunft</b><br><small>Leonardo Boutique Termini</small>');
+  const allPts=[];
+  DAYS.forEach(d=>{
+    const col=DAY_COLORS[d.id];
+    let num=0;
+    d.acts.forEach(a=>{
+      if(!a.c)return;
+      num++;
+      L.marker(a.c,{icon:numberedIcon(num,col)}).addTo(overviewMap)
+        .bindPopup(`
+          <div style="min-width:160px;font-family:sans-serif">
+            <div style="font-size:.68rem;font-weight:800;color:${col};margin-bottom:2px">${d.ws} ${d.dl}</div>
+            <div style="font-weight:800;font-size:.88rem;margin-bottom:3px">${T[a.type].ic} ${a.ttl}</div>
+            <div style="font-size:.74rem;color:#666;margin-bottom:6px">${a.tm} Uhr</div>
+            <a href="${gNavUrl(a.c)}" target="_blank"
+               style="display:inline-block;padding:5px 10px;background:#005353;color:#fff;border-radius:5px;font-size:.73rem;font-weight:700;text-decoration:none">
+               🧭 Navigation
+            </a>
+          </div>`);
+      allPts.push(a.c);
+    });
+  });
+  if(allPts.length>1)overviewMap.fitBounds(allPts,{padding:[32,32]});
+  overviewMapReady=true;
+}
+
+// ================================================================
+//  INIT
+// ================================================================
+function initApp(){
+  buildGrid();
+  buildDayCards();
+  buildDayNav();
+  buildTimeline(0);
+  const diff=Math.ceil((new Date('2026-05-31')-new Date())/(864e5));
+  document.getElementById('hdr-days').textContent=
+    diff>0?`in ${diff} Tagen`:'✈️ Jetzt!';
+  loadPOIs();
+}
+if(sessionStorage.getItem('rome26_ok')==='1'&&document.readyState!=='loading')initApp();
+</script>
+</body>
+</html>
